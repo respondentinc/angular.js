@@ -11535,7 +11535,7 @@ describe('$compile', function() {
       $rootScope.testUrl = $sce.trustAsUrl('javascript:something');
       $rootScope.$digest();
       expect(element.attr('srcset')).toEqual(
-          'unsafe:javascript:something ,unsafe:javascript:something');
+          'unsafe:javascript:something, unsafe:javascript:something');
     }));
 
     it('should use $$sanitizeUri', function() {
@@ -11553,12 +11553,12 @@ describe('$compile', function() {
         element = $compile('<img srcset="{{testUrl}}, {{testUrl}}"></img>')($rootScope);
         $rootScope.testUrl = 'javascript:yay';
         $rootScope.$apply();
-        expect(element.attr('srcset')).toEqual('someSanitizedUrl ,someSanitizedUrl');
+        expect(element.attr('srcset')).toEqual('someSanitizedUrl, someSanitizedUrl');
 
         element = $compile('<img srcset="java{{testUrl}}"></img>')($rootScope);
         $rootScope.testUrl = 'script:yay, javascript:nay';
         $rootScope.$apply();
-        expect(element.attr('srcset')).toEqual('someSanitizedUrl ,someSanitizedUrl');
+        expect(element.attr('srcset')).toEqual('someSanitizedUrl, someSanitizedUrl');
       });
     });
 
@@ -11571,25 +11571,25 @@ describe('$compile', function() {
         'http://example.com/image.png 128w':'http://example.com/image.png 128w',
         'http://example.com/image.png 2x':'http://example.com/image.png 2x',
         'http://example.com/image.png 1.5x':'http://example.com/image.png 1.5x',
-        'http://example.com/image1.png 1x,http://example.com/image2.png 2x':'http://example.com/image1.png 1x,http://example.com/image2.png 2x',
-        'http://example.com/image1.png 1x ,http://example.com/image2.png 2x':'http://example.com/image1.png 1x ,http://example.com/image2.png 2x',
-        'http://example.com/image1.png 1x, http://example.com/image2.png 2x':'http://example.com/image1.png 1x,http://example.com/image2.png 2x',
-        'http://example.com/image1.png 1x , http://example.com/image2.png 2x':'http://example.com/image1.png 1x ,http://example.com/image2.png 2x',
-        'http://example.com/image1.png 48w,http://example.com/image2.png 64w':'http://example.com/image1.png 48w,http://example.com/image2.png 64w',
+        'http://example.com/image1.png 1x,http://example.com/image2.png 2x': 'http://example.com/image1.png 1x, http://example.com/image2.png 2x',
+        'http://example.com/image1.png 1x ,http://example.com/image2.png 2x': 'http://example.com/image1.png 1x, http://example.com/image2.png 2x',
+        'http://example.com/image1.png 1x, http://example.com/image2.png 2x': 'http://example.com/image1.png 1x, http://example.com/image2.png 2x',
+        'http://example.com/image1.png 1x , http://example.com/image2.png 2x': 'http://example.com/image1.png 1x, http://example.com/image2.png 2x',
+        'http://example.com/image1.png 48w,http://example.com/image2.png 64w': 'http://example.com/image1.png 48w, http://example.com/image2.png 64w',
         //Test regex to make sure doesn't mistake parts of url for width descriptors
-        'http://example.com/image1.png?w=48w,http://example.com/image2.png 64w':'http://example.com/image1.png?w=48w,http://example.com/image2.png 64w',
-        'http://example.com/image1.png 1x,http://example.com/image2.png 64w':'http://example.com/image1.png 1x,http://example.com/image2.png 64w',
-        'http://example.com/image1.png,http://example.com/image2.png':'http://example.com/image1.png ,http://example.com/image2.png',
-        'http://example.com/image1.png ,http://example.com/image2.png':'http://example.com/image1.png ,http://example.com/image2.png',
-        'http://example.com/image1.png, http://example.com/image2.png':'http://example.com/image1.png ,http://example.com/image2.png',
-        'http://example.com/image1.png , http://example.com/image2.png':'http://example.com/image1.png ,http://example.com/image2.png',
+        'http://example.com/image1.png?w=48w,http://example.com/image2.png 64w': 'http://example.com/image1.png?w=48w,http://example.com/image2.png 64w',
+        'http://example.com/image1.png 1x,http://example.com/image2.png 64w': 'http://example.com/image1.png 1x, http://example.com/image2.png 64w',
+        'http://example.com/image1.png,http://example.com/image2.png': 'http://example.com/image1.png, http://example.com/image2.png',
+        'http://example.com/image1.png ,http://example.com/image2.png': 'http://example.com/image1.png, http://example.com/image2.png',
+        'http://example.com/image1.png, http://example.com/image2.png': 'http://example.com/image1.png, http://example.com/image2.png',
+        'http://example.com/image1.png , http://example.com/image2.png': 'http://example.com/image1.png, http://example.com/image2.png',
         'http://example.com/image1.png 1x, http://example.com/image2.png 2x, http://example.com/image3.png 3x':
-          'http://example.com/image1.png 1x,http://example.com/image2.png 2x,http://example.com/image3.png 3x',
+          'http://example.com/image1.png 1x, http://example.com/image2.png 2x, http://example.com/image3.png 3x',
         'javascript:doEvilStuff() 2x': 'unsafe:javascript:doEvilStuff() 2x',
-        'http://example.com/image1.png 1x,javascript:doEvilStuff() 2x':'http://example.com/image1.png 1x,unsafe:javascript:doEvilStuff() 2x',
-        'http://example.com/image1.jpg?x=a,b 1x,http://example.com/ima,ge2.jpg 2x':'http://example.com/image1.jpg?x=a,b 1x,http://example.com/ima,ge2.jpg 2x',
+        'http://example.com/image1.png 1x,javascript:doEvilStuff() 2x': 'http://example.com/image1.png 1x, unsafe:javascript:doEvilStuff() 2x',
+        'http://example.com/image1.jpg?x=a,b 1x,http://example.com/ima,ge2.jpg 2x': 'http://example.com/image1.jpg?x=a,b 1x, http://example.com/ima,ge2.jpg 2x',
         //Test regex to make sure doesn't mistake parts of url for pixel density descriptors
-        'http://example.com/image1.jpg?x=a2x,b 1x,http://example.com/ima,ge2.jpg 2x':'http://example.com/image1.jpg?x=a2x,b 1x,http://example.com/ima,ge2.jpg 2x'
+        'http://example.com/image1.jpg?x=a2x,b 1x,http://example.com/ima,ge2.jpg 2x': 'http://example.com/image1.jpg?x=a2x,b 1x, http://example.com/ima,ge2.jpg 2x'
       };
 
       forEach(testSet, function(ref, url) {

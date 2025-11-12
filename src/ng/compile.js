@@ -2094,38 +2094,124 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
       // `$sce.trustAsHtml` on the whole `img` tag and inject it into the DOM using the
       // `ng-bind-html` directive.
 
-      var result = '';
+      // CVE-2024-21490 FIX: use a linear parser in place of the previous regular expression in
+      // order to avoid catastrophic backtracking while preserving the original splitting logic.
 
-      // first check if there are spaces because it's not the same pattern
       var trimmedSrcset = trim(value);
-      //                (   999x   ,|   999w   ,|   ,|,   )
-      var srcPattern = /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+)/;
-      var pattern = /\s/.test(trimmedSrcset) ? srcPattern : /(,)/;
-
-      // split srcset into tuple of uri and descriptor except for the last item
-      var rawUris = trimmedSrcset.split(pattern);
-
-      // for each tuples
-      var nbrUrisWith2parts = Math.floor(rawUris.length / 2);
-      for (var i = 0; i < nbrUrisWith2parts; i++) {
-        var innerIdx = i * 2;
-        // sanitize the uri
-        result += $sce.getTrustedMediaUrl(trim(rawUris[innerIdx]));
-        // add the descriptor
-        result += ' ' + trim(rawUris[innerIdx + 1]);
+      if (!trimmedSrcset) {
+        return '';
       }
 
-      // split the last item into uri and descriptor
-      var lastTuple = trim(rawUris[i * 2]).split(/\s/);
+      var hasWhitespace = /\s/.test(trimmedSrcset);
+      var entries = hasWhitespace ?
+        splitSrcsetCandidates(trimmedSrcset) :
+        trimmedSrcset.split(',');
 
-      // sanitize the last uri
-      result += $sce.getTrustedMediaUrl(trim(lastTuple[0]));
+      var descriptorPattern = /^\d+(?:\.\d+)?[xw]$/i;
+      var sanitizedEntries = [];
 
-      // and add the last descriptor if any
-      if (lastTuple.length === 2) {
-        result += (' ' + trim(lastTuple[1]));
+      for (var i = 0; i < entries.length; i++) {
+        var candidate = trim(entries[i]);
+        if (!candidate) continue;
+
+        var url = candidate;
+        var descriptor = '';
+
+        var lastSpaceIdx = candidate.lastIndexOf(' ');
+        if (lastSpaceIdx !== -1) {
+          var potentialDescriptor = trim(candidate.substring(lastSpaceIdx + 1));
+          if (descriptorPattern.test(potentialDescriptor)) {
+            url = trim(candidate.substring(0, lastSpaceIdx));
+            descriptor = potentialDescriptor;
+          }
+        }
+
+        if (!url) continue;
+
+        var sanitizedUrl = $sce.getTrustedMediaUrl(url);
+        sanitizedEntries.push(descriptor ? sanitizedUrl + ' ' + descriptor : sanitizedUrl);
       }
-      return result;
+
+      return sanitizedEntries.join(', ');
+
+      function splitSrcsetCandidates(str) {
+        var parts = [];
+        var candidateStart = 0;
+        for (var idx = 0; idx < str.length; idx++) {
+          if (str.charCodeAt(idx) === 0x2C && isSeparatorComma(str, idx)) {
+            parts.push(str.slice(candidateStart, idx));
+            candidateStart = idx + 1;
+          }
+        }
+        parts.push(str.slice(candidateStart));
+        return parts;
+      }
+
+      function isSeparatorComma(str, commaIdx) {
+        var prevCode = commaIdx > 0 ? str.charCodeAt(commaIdx - 1) : null;
+        if (prevCode !== null && isWhitespaceCode(prevCode)) {
+          return true;
+        }
+
+        var nextCode = commaIdx + 1 < str.length ? str.charCodeAt(commaIdx + 1) : null;
+        if (nextCode !== null && isWhitespaceCode(nextCode)) {
+          return true;
+        }
+
+        // Look for width/density descriptors immediately before the comma: `<space><number>[.number][x|w]`
+        var pos = commaIdx - 1;
+
+        // Allow optional whitespace between descriptor value and the comma.
+        while (pos >= 0 && isWhitespaceCode(str.charCodeAt(pos))) {
+          pos--;
+        }
+
+        if (pos < 0) {
+          return false;
+        }
+
+        var unitCode = str.charCodeAt(pos);
+        if (unitCode !== 0x78 && unitCode !== 0x58 && unitCode !== 0x77 && unitCode !== 0x57) {
+          return false;
+        }
+
+        pos--;
+        var sawDigit = false;
+        var sawDot = false;
+
+        while (pos >= 0) {
+          var code = str.charCodeAt(pos);
+          if (isDigitCode(code)) {
+            sawDigit = true;
+            pos--;
+            continue;
+          }
+          if (!sawDot && code === 0x2E) {
+            sawDot = true;
+            pos--;
+            continue;
+          }
+          break;
+        }
+
+        if (!sawDigit) {
+          return false;
+        }
+
+        if (pos < 0) {
+          return false;
+        }
+
+        return isWhitespaceCode(str.charCodeAt(pos));
+      }
+
+      function isWhitespaceCode(code) {
+        return code === 0x20 || code === 0x09 || code === 0x0A || code === 0x0C || code === 0x0D;
+      }
+
+      function isDigitCode(code) {
+        return code >= 0x30 && code <= 0x39;
+      }
     }
 
 
