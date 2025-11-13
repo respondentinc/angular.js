@@ -2306,4 +2306,53 @@ describe('angular', function() {
       expect(isElement(array)).toBe(false);
     });
   });
+
+
+describe('angular.copy ReDoS mitigations', function() {
+  it('should cap copy depth by default (returns "..." beyond depth budget)', function() {
+    // Build a deeply nested object with depth 60.
+    var depth = 60;
+    var obj = {};
+    var cursor = obj;
+    for (var i = 0; i < depth; i++) {
+      cursor.a = {};
+      cursor = cursor.a;
+    }
+
+    var cloned = angular.copy(obj); // default maxDepth enforced in fork
+
+    // Walk down up to 50 levels; the next level should be the sentinel '...'.
+    var maxBudget = 50; // set in src/Angular.js
+    var node = cloned;
+    for (var d = 0; d < maxBudget; d++) {
+      expect(typeof node).toBe('object');
+      expect(node).not.toBe(null);
+      node = node.a;
+    }
+    expect(node).toBe('...');
+  });
+
+  it('should clone RegExp preserving source, flags and lastIndex', function() {
+    var re = /ab+c/gi;
+    re.lastIndex = 2;
+
+    var cloned = angular.copy(re);
+
+    expect(cloned instanceof RegExp).toBe(true);
+    expect(cloned.source).toBe('ab+c');
+
+    // Flags: global + ignoreCase
+    // Use .flags if available, otherwise check individual booleans.
+    if (typeof cloned.flags === 'string') {
+      expect(cloned.flags.indexOf('g') !== -1).toBe(true);
+      expect(cloned.flags.indexOf('i') !== -1).toBe(true);
+    } else {
+      expect(cloned.global).toBe(true);
+      expect(cloned.ignoreCase).toBe(true);
+    }
+
+    expect(cloned.lastIndex).toBe(2);
+  });
+});
+
 });

@@ -644,9 +644,18 @@ function $RouteProvider() {
       var lastRoute = $route.current;
       var nextRoute = preparedRoute;
 
+      function replaceObject(dst, src) {
+        for (var key in dst) {
+          if (key !== '$$hashKey' && !Object.prototype.hasOwnProperty.call(src, key)) {
+            delete dst[key];
+          }
+        }
+        shallowCopy(src, dst);
+      }
+
       if (preparedRouteIsUpdateOnly) {
         lastRoute.params = nextRoute.params;
-        angular.copy(lastRoute.params, $routeParams);
+        replaceObject($routeParams, lastRoute.params);
         $rootScope.$broadcast('$routeUpdate', lastRoute);
       } else if (nextRoute || lastRoute) {
         forceReload = false;
@@ -667,7 +676,7 @@ function $RouteProvider() {
                 if (nextRoute === $route.current) {
                   if (nextRoute) {
                     nextRoute.locals = locals;
-                    angular.copy(nextRoute.params, $routeParams);
+                    replaceObject($routeParams, nextRoute.params);
                   }
                   $rootScope.$broadcast('$routeChangeSuccess', nextRoute, lastRoute);
                 }

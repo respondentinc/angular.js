@@ -871,7 +871,7 @@ function arrayRemove(array, value) {
 function copy(source, destination, maxDepth) {
   var stackSource = [];
   var stackDest = [];
-  maxDepth = isValidObjectMaxDepth(maxDepth) ? maxDepth : NaN;
+  maxDepth = isValidObjectMaxDepth(maxDepth) ? maxDepth : 50;
 
   if (destination) {
     if (isTypedArray(destination) || isArrayBuffer(destination)) {
@@ -999,7 +999,14 @@ function copy(source, destination, maxDepth) {
         return new source.constructor(source.valueOf());
 
       case '[object RegExp]':
-        var re = new RegExp(source.source, source.toString().match(/[^/]*$/)[0]);
+        var flags = source.flags !== undefined
+          ? source.flags
+          : (source.global ? 'g' : '') +
+            (source.ignoreCase ? 'i' : '') +
+            (source.multiline ? 'm' : '') +
+            (source.unicode ? 'u' : '') +
+            (source.sticky ? 'y' : '');
+        var re = new RegExp(source.source, flags);
         re.lastIndex = source.lastIndex;
         return re;
 
