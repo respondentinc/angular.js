@@ -11599,6 +11599,42 @@ describe('$compile', function() {
       });
 
     }));
+
+    it('should respect imgSrcSanitizationTrustedUrlList for interpolated img[srcset]', function() {
+      module(function($compileProvider) {
+        $compileProvider.imgSrcSanitizationTrustedUrlList(/^https:\/\/angularjs\.org\//);
+      });
+      inject(function($compile, $rootScope) {
+        element = $compile('<img srcset="{{urls}}"></img>')($rootScope);
+        $rootScope.urls = 'https://angularjs.org/one.png 1x, https://evil.example/two.png 2x';
+        $rootScope.$apply();
+        expect(element.attr('srcset')).toEqual('https://angularjs.org/one.png 1x, unsafe:https://evil.example/two.png 2x');
+      });
+    });
+
+    it('should respect imgSrcSanitizationTrustedUrlList for interpolated source[srcset]', function() {
+      module(function($compileProvider) {
+        $compileProvider.imgSrcSanitizationTrustedUrlList(/^https:\/\/angularjs\.org\//);
+      });
+      inject(function($compile, $rootScope) {
+        element = $compile('<source srcset="{{urls}}"></source>')($rootScope);
+        $rootScope.urls = 'https://angularjs.org/a.png 1x, https://evil.example/b.png 2x';
+        $rootScope.$apply();
+        expect(element.attr('srcset')).toEqual('https://angularjs.org/a.png 1x, unsafe:https://evil.example/b.png 2x');
+      });
+    });
+
+    it('should respect imgSrcSanitizationTrustedUrlList for <source ng-attr-srcset>', function() {
+      module(function($compileProvider) {
+        $compileProvider.imgSrcSanitizationTrustedUrlList(/^https:\/\/angularjs\.org\//);
+      });
+      inject(function($compile, $rootScope) {
+        element = $compile('<source ng-attr-srcset="{{urls}}"></source>')($rootScope);
+        $rootScope.urls = 'https://evil.example/x.png 1x, https://angularjs.org/y.png 2x, javascript:alert(1) 3x';
+        $rootScope.$apply();
+        expect(element.attr('srcset')).toEqual('unsafe:https://evil.example/x.png 1x, https://angularjs.org/y.png 2x, unsafe:javascript:alert(1) 3x');
+      });
+    });
   });
 
   describe('a[href] sanitization', function() {

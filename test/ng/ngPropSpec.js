@@ -399,6 +399,29 @@ describe('ngProp*', function() {
     // IE9 ignores source[srcset] property assignments
     if (msie !== 9 || srcsetElement === 'img') {
       describe(srcsetElement + '[srcset] sanitization', function() {
+        it('should respect allowlist for ng-prop-srcset', function() {
+          module(function($compileProvider) {
+            $compileProvider.imgSrcSanitizationTrustedUrlList(/^https:\/\/angularjs\.org\//);
+          });
+          inject(function($compile, $rootScope) {
+            var element = $compile('<' + srcsetElement + ' ng-prop-srcset="urls"></' + srcsetElement + '>')($rootScope);
+            $rootScope.urls = 'https://angularjs.org/one.png 1x, https://evil.example/two.png 2x';
+            $rootScope.$apply();
+            expect(element.prop('srcset')).toBe('https://angularjs.org/one.png 1x, unsafe:https://evil.example/two.png 2x');
+          });
+        });
+
+        it('should individually sanitize mixed URLs for ng-prop-srcset', function() {
+          module(function($compileProvider) {
+            $compileProvider.imgSrcSanitizationTrustedUrlList(/^https:\/\/angularjs\.org\//);
+          });
+          inject(function($compile, $rootScope) {
+            var element = $compile('<' + srcsetElement + ' ng-prop-srcset="urls"></' + srcsetElement + '>')($rootScope);
+            $rootScope.urls = 'https://evil.example/a.png 1x, https://angularjs.org/b.png 2x, https://evil.example/c.png 3x';
+            $rootScope.$apply();
+            expect(element.prop('srcset')).toBe('unsafe:https://evil.example/a.png 1x, https://angularjs.org/b.png 2x, unsafe:https://evil.example/c.png 3x');
+          });
+        });
         it('should not error if srcset is blank', inject(function($compile, $rootScope) {
           var element = $compile('<' + srcsetElement + ' ng-prop-srcset="testUrl"></' + srcsetElement + '>')($rootScope);
           // Set srcset to a value
@@ -501,6 +524,18 @@ describe('ngProp*', function() {
             expect(element.prop('srcset')).toEqual(ref);
           });
         }));
+
+        it('should sanitize quoted candidates for ng-prop-srcset', function() {
+          module(function($compileProvider) {
+            $compileProvider.imgSrcSanitizationTrustedUrlList(/^https?:\/\/example\.com\//);
+          });
+          inject(function($compile, $rootScope) {
+            var element = $compile('<' + srcsetElement + ' ng-prop-srcset="urls"></' + srcsetElement + '>')($rootScope);
+            $rootScope.urls = '\'http://example.com/a.png\' 1x, "http://evil.example/b.png" 2x';
+            $rootScope.$apply();
+            expect(element.prop('srcset')).toContain('unsafe:http://evil.example/b.png 2x');
+          });
+        });
       });
     }
   });

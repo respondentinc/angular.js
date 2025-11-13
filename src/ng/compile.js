@@ -2128,6 +2128,17 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
 
         if (!url) continue;
 
+        // Strip wrapping quotes around the URL candidate, if present.
+        // Some authors include quotes around individual srcset URLs; these quotes
+        // are not part of the URL itself and can confuse URL resolution/sanitization.
+        if (url.length >= 2) {
+          var firstChar = url.charAt(0);
+          var lastChar = url.charAt(url.length - 1);
+          if ((firstChar === '"' && lastChar === '"') || (firstChar === '\'' && lastChar === '\'')) {
+            url = url.substring(1, url.length - 1);
+          }
+        }
+
         var sanitizedUrl = $sce.getTrustedMediaUrl(url);
         sanitizedEntries.push(descriptor ? sanitizedUrl + ' ' + descriptor : sanitizedUrl);
       }
@@ -2148,6 +2159,7 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
       }
 
       function isSeparatorComma(str, commaIdx) {
+        var localDescriptorPattern = /^\d+(?:\.\d+)?[xw]$/i;
         var prevCode = commaIdx > 0 ? str.charCodeAt(commaIdx - 1) : null;
         if (prevCode !== null && isWhitespaceCode(prevCode)) {
           return true;
@@ -2172,6 +2184,22 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
 
         var unitCode = str.charCodeAt(pos);
         if (unitCode !== 0x78 && unitCode !== 0x58 && unitCode !== 0x77 && unitCode !== 0x57) {
+          // Not an x/w unit before the comma. If there is whitespace between the URL and the comma,
+          // and the token after the last whitespace is not a valid descriptor, treat this comma as a
+          // candidate separator (e.g. "... ico xyz,<next-url>").
+          var spacePos = pos;
+          while (spacePos >= 0 && !isWhitespaceCode(str.charCodeAt(spacePos))) {
+            spacePos--;
+          }
+          if (spacePos >= 0) {
+            var token = trim(str.slice(spacePos + 1, commaIdx));
+            // If the token looks like part of a URL (contains URL-special chars), do not split.
+            // This avoids splitting on commas inside URLs (e.g., data:image/... or query params).
+            var looksLikeUrlFragment = /[:/?&=,]/.test(token);
+            if (token && !looksLikeUrlFragment && !localDescriptorPattern.test(token)) {
+              return true;
+            }
+          }
           return false;
         }
 

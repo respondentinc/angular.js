@@ -421,9 +421,15 @@ forEach(['src', 'srcset', 'href'], function(attrName) {
           propName = null;
         }
 
+        // CVE-2024-8372 FIX: For srcset, don't use getTrustedMediaUrl() as it doesn't
+        // properly parse multiple URLs. Let $set() handle it via sanitizeSrcset().
         // We need to sanitize the url at least once, in case it is a constant
         // non-interpolated attribute.
-        attr.$set(normalized, $sce.getTrustedMediaUrl(attr[normalized]));
+        if (attrName === 'srcset') {
+          attr.$set(normalized, attr[normalized]);
+        } else {
+          attr.$set(normalized, $sce.getTrustedMediaUrl(attr[normalized]));
+        }
 
         attr.$observe(normalized, function(value) {
           if (!value) {
